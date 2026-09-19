@@ -4,6 +4,7 @@ import VideoPlayer from './components/VideoPlayer';
 import PTZPad from './components/PTZPad';
 import DeviceInfoCard from './components/DeviceInfoCard';
 import ConnectModal from './components/ConnectModal';
+import RecordingsList from './components/RecordingsList';
 
 const API_BASE = 'http://localhost:5001/api';
 
@@ -24,7 +25,7 @@ export default function App() {
       try {
         const creds = JSON.parse(saved);
         if (creds && (creds.xaddr || creds.customStreamUrl)) {
-          handleConnectCamera(creds, false); // pass false so we don't re-save unnecessary duplicate
+          handleConnectCamera(creds, false);
         }
       } catch (err) {
         console.error('Failed to parse saved credentials:', err);
@@ -102,7 +103,7 @@ export default function App() {
     }
   };
 
-  // Start HLS Transcode Stream
+  // Start HLS Transcode Stream & Recording Loop
   const startStream = async (urlToStream) => {
     const targetUrl = urlToStream || cameraInfo?.streamUrl;
     if (!targetUrl) return;
@@ -171,7 +172,7 @@ export default function App() {
       />
 
       <main className="dashboard-grid">
-        {/* Left Column: Video Feed */}
+        {/* Left Column: Video Feed & 10-Min Recordings List */}
         <section style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           <VideoPlayer
             streamUrl={streamUrl}
@@ -181,6 +182,8 @@ export default function App() {
             snapshotUrl={cameraInfo?.snapshotUrl}
             cameraInfo={cameraInfo}
           />
+
+          <RecordingsList />
         </section>
 
         {/* Right Column: Controls & Information */}
