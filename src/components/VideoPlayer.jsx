@@ -37,12 +37,14 @@ export default function VideoPlayer({ streamUrl, isStreaming, onStartStream, onS
 
     if (Hls.isSupported()) {
       hls = new Hls({
-        maxBufferLength: 3,
-        maxMaxBufferLength: 6,
-        liveSyncDurationCount: 2,
-        liveMaxLatencyDurationCount: 5,
+        maxBufferLength: 1,
+        maxMaxBufferLength: 2,
+        liveSyncDurationCount: 1,
+        liveMaxLatencyDurationCount: 2,
+        liveDurationInfinity: true,
         enableWorker: true,
         lowLatencyMode: true,
+        backBufferLength: 0,
       });
 
       hls.loadSource(fullHlsUrl);
@@ -52,6 +54,18 @@ export default function VideoPlayer({ streamUrl, isStreaming, onStartStream, onS
         setLoading(false);
         video.play().then(() => setIsPlaying(true)).catch((e) => console.log('Autoplay prevented:', e));
       });
+
+      // Force jump to live edge if video lags behind live edge or attempts to seek
+      const forceLiveEdge = () => {
+        if (video && hls && hls.liveSyncPosition) {
+          if (Math.abs(video.currentTime - hls.liveSyncPosition) > 1.5) {
+            video.currentTime = hls.liveSyncPosition;
+          }
+        }
+      };
+
+      video.addEventListener('seeking', forceLiveEdge);
+      video.addEventListener('timeupdate', forceLiveEdge);
 
       hls.on(Hls.Events.ERROR, (event, data) => {
         if (data.fatal) {
@@ -72,6 +86,14 @@ export default function VideoPlayer({ streamUrl, isStreaming, onStartStream, onS
           }
         }
       });
+
+      return () => {
+        video.removeEventListener('seeking', forceLiveEdge);
+        video.removeEventListener('timeupdate', forceLiveEdge);
+        if (hls) {
+          hls.destroy();
+        }
+      };
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
       // Native Safari HLS
       video.src = fullHlsUrl;
@@ -82,12 +104,6 @@ export default function VideoPlayer({ streamUrl, isStreaming, onStartStream, onS
     } else {
       setError('HLS playback is not supported in this browser.');
     }
-
-    return () => {
-      if (hls) {
-        hls.destroy();
-      }
-    };
   }, [streamUrl, isStreaming]);
 
   const handleLoadedMetadata = () => {
